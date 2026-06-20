@@ -1,0 +1,66 @@
+[
+  {
+    "title": "Inception",
+    "year": 2010,
+    "genre": "Sci-Fi",
+    "actors": ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
+    "duration_min": 148,
+    "synopsis": "Dom Cobb is a skilled thief who specializes in extraction, the rare art of stealing secrets buried deep in the subconscious during the dream state. His skill has made him a coveted player in corporate espionage, but it has also cost him everything he loves. Cobb gets a chance at redemption when he is offered a job that seems impossible: planting an idea in someone's mind rather than stealing one. If he succeeds, it could be the perfect crime, but a dangerous enemy who anticipates his every move means Cobb and his team find themselves chased through a layered dreamscape, where time moves differently the deeper they go and the line between dream and reality starts to blur. As the team descends through dream within dream within dream, the stakes escalate, and Cobb must confront guilt over his wife's death that has followed him into every level."
+  },
+  {
+    "title": "The Shawshank Redemption",
+    "year": 1994,
+    "genre": "Drama",
+    "actors": ["Tim Robbins", "Morgan Freeman"],
+    "duration_min": 142,
+    "synopsis": "Andy Dufresne, a banker, is sentenced to life in Shawshank State Penitentiary for the murders of his wife and her lover, despite his claims of innocence. Initially he struggles to adapt to prison life, but he gradually forms a close friendship with Ellis Red Redding, a fellow inmate serving a life sentence. Andy uses his financial skills to gain favor with the corrupt prison staff, becoming indispensable to the warden's money-laundering schemes while quietly working toward something the guards never suspect. Over the decades, his integrity and quiet determination become a source of hope for the other inmates, even as the institution tries to grind that hope out of everyone inside it. Red eventually narrates how patience, friendship, and an almost impossible long-term plan culminate in one of cinema's most memorable escapes."
+  },
+  {
+    "title": "Mad Max: Fury Road",
+    "year": 2015,
+    "genre": "Action",
+    "actors": ["Tom Hardy", "Charlize Theron"],
+    "duration_min": 120,
+    "synopsis": "In a scorched, post-apocalyptic wasteland where water and fuel are the only currencies that matter, Max Rockatansky finds himself captured by the War Boys, a fanatical army serving the tyrannical warlord Immortan Joe. He is forced into an uneasy alliance with Imperator Furiosa, one of Joe's most trusted commanders, after she diverts a war rig and smuggles out his five wives in a desperate bid for freedom. What follows is an extended, high-speed pursuit across the desert as Joe's forces try to recapture the women, with Max and Furiosa gradually shifting from reluctant allies into something closer to partners united by a shared need to outrun a brutal regime."
+  },
+  {
+    "title": "The Grand Budapest Hotel",
+    "year": 2014,
+    "genre": "Comedy",
+    "actors": ["Ralph Fiennes", "Saoirse Ronan", "Tony Revolori"],
+    "duration_min": 99,
+    "synopsis": "Set in the fictional European country of Zubrowka between the world wars, the film follows Zero, a young lobby boy, as he is taken under the wing of M. Gustave, the legendary concierge of the once-glamorous Grand Budapest Hotel. Gustave's life is upended when a wealthy guest and former lover dies and leaves him an extremely valuable painting, drawing the fury of her greedy family and entangling Gustave and Zero in a farcical chain of events involving a stolen masterpiece, a prison break, and a paramilitary force closing in on the old world Gustave represents. Told as a story within a story within a story, the film balances slapstick comedy with an undercurrent of melancholy about a more civilized era slipping away."
+  },
+  {
+    "title": "Get Out",
+    "year": 2017,
+    "genre": "Horror",
+    "actors": ["Daniel Kaluuya", "Allison Williams"],
+    "duration_min": 104,
+    "synopsis": "Chris Washington, a young Black photographer, agrees to spend a weekend meeting the family of his white girlfriend, Rose, at her parents' secluded estate. What begins as standard meet-the-parents awkwardness curdles into something far more sinister as Chris notices the unsettling behavior of the few other Black people on the property, who seem strangely vacant and overly polite. As the weekend's social rituals start to feel less like coincidence and more like orchestration, Chris uncovers a horrifying conspiracy hiding behind the family's welcoming facade, one that forces him to fight for his life and his identity."
+  },
+  {
+    "title": "Interstellar",
+    "year": 2014,
+    "genre": "Sci-Fi",
+    "actors": ["Matthew McConaughey", "Anne Hathaway", "Jessica Chastain"],
+    "duration_min": 169,
+    "synopsis": "With Earth's ecosystem collapsing and crops failing on a global scale, former NASA pilot Cooper is recruited for a last-resort mission to find a new home for humanity among the stars. Leaving his children behind, he joins a small crew traveling through a wormhole near Saturn in search of habitable worlds identified by earlier scout missions. As the team confronts hostile planets, dwindling resources, and the brutal physics of relativity that cause time to pass at wildly different rates for Cooper and his family back home, the mission becomes a race against both the end of humanity's home planet and the erosion of the relationships Cooper sacrificed to save it."
+  },
+  {
+    "title": "La La Land",
+    "year": 2016,
+    "genre": "Musical/Romance",
+    "actors": ["Ryan Gosling", "Emma Stone"],
+    "duration_min": 128,
+    "synopsis": "Mia, an aspiring actress working as a barista between auditions, and Sebastian, a jazz pianist who dreams of opening his own club dedicated to preserving the genre's traditions, meet by chance in Los Angeles and fall into a romance built on mutual ambition. As their relationship deepens, so do the demands of their respective careers. Sebastian takes a steady but creatively compromising gig with a popular band, while Mia's confidence is repeatedly tested by rejection and a one-woman show that flops. The film traces the tension between supporting someone you love and chasing the dream that defines you, building to a bittersweet meditation on the choices that shape a life."
+  },
+  {
+    "title": "Parasite",
+    "year": 2019,
+    "genre": "Thriller/Drama",
+    "actors": ["Song Kang-ho", "Lee Sun-kyun"],
+    "duration_min": 132,
+    "synopsis": "The Kim family lives in a cramped basement apartment, scraping by on odd jobs and folding pizza boxes for income, until the son Ki-woo lands a position tutoring the teenage daughter of the wealthy Park family. Recognizing an opportunity, the Kims engineer a scheme to infiltrate the Park household entirely, each family member posing as an unrelated, highly qualified professional to be hired into the home one by one. For a while the con works seamlessly, the Kims enjoying a taste of the Parks' comfort and trust, until a buried secret in the house's basement threatens to unravel everything and exposes how thin the line is between the people who serve a household and the people who depend on that service to survive."
+  }
+]
