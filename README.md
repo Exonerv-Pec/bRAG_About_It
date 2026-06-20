@@ -43,8 +43,6 @@ python code\query_store.py       # query the persisted store directly
 
 **Day 3** — Moved from a flat Python list to an actual persisted store. Expanded each movie into a full synopsis paragraph, chunked them (300 chars, ~15% overlap), embedded the chunks, and stored everything in Chroma with metadata (source title, chunk index, year, genre). Querying now goes straight against the disk-backed collection instead of re-embedding everything on every run.
 
-Hit a small bug first: running from PyCharm's default working directory meant `open("data/movies.json")` was looking inside `code/` instead of the project root. Fixed by building the path off the script's own location with `pathlib`, so it works the same regardless of where it's run from.
-
 Some results worth noting once it was working:
 - *"Max Rockatansky finds himself captured by the War Boys"* → Mad Max chunk 0 at 0.733, by far the most confident match I've seen so far — makes sense, it's basically quoting the synopsis back.
 - *"I want to watch a movie where actress works as barista!"* → La La Land's barista chunk came back top at 0.417 despite the casual phrasing and exclamation mark.
