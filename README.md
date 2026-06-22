@@ -1,10 +1,10 @@
 # bRAG About It
 
-A small command-line tool that answers questions over a set of documents I choose — built from scratch over a week to show Retrieval Augmented Generation end-to-end.
+A small command-line tool that answers questions about movies — built from scratch over a week to create a Retrieval Augmented Generation (RAG) end-to-end.
 
-## Status: Day 6 of 7 — agent behavior + workflow design
+## Status: Complete ✓
 
-🟩🟩🟩🟩🟩🟩⬜ 6/7 days (86%)
+🟩🟩🟩🟩🟩🟩🟩 7/7 days (100%)
 
 ## Stack
 
@@ -14,37 +14,75 @@ A small command-line tool that answers questions over a set of documents I choos
 | Embeddings | `sentence-transformers` (`all-MiniLM-L6-v2`) | Local, free, no rate limits |
 | Vector store | Chroma | Pure Python, persists to disk |
 
+## Architecture
+
+![System architecture](docs/architecture.svg)
+
+The pipeline has two paths depending on what the router decides. Chitchat (greetings, meta-questions) goes straight to a direct reply with no vector search. Real questions go through retrieval, an optional query-rewrite step if confidence is low, prompt assembly, and finally the LLM. Everything is logged to `rag.log` with timestamps.
+
 ## Setup
 
 1. Install [Ollama](https://ollama.com) and pull a model:
    ```
    ollama pull llama3.2
    ```
-2. Create a virtual environment and install dependencies:
+2. Clone the repo and install dependencies:
    ```
+   git clone https://github.com/YOUR_USERNAME/bRAG_About_It.git
+   cd bRAG_About_It
+   python -m venv venv
+   venv\Scripts\Activate.ps1   # Windows
    pip install -r requirements.txt
    ```
-   First run also downloads the embedding model (~80MB) from Hugging Face. Needs internet once, then it's cached locally.
+   First run downloads the embedding model (~80MB) from Hugging Face. Needs internet once, then it's cached locally.
+
+3. Build the vector store:
+   ```
+   python code\ingest.py
+   ```
 
 ## Usage
 
 ```
-python code\hello_ollama.py      # sanity check the LLM connection
-python code\movie_search.py      # in-memory semantic search (Day 2)
-python code\ingest.py            # chunk + embed + store in Chroma (Day 3)
-python code\query_store.py       # query the persisted store directly
-python code\generate.py          # full RAG pipeline: retrieve + prompt + generate (Day 4)
-python code\evaluate.py          # run the 12-question eval harness (Day 5)
-python code\agent.py             # interactive agent with routing and query rewriting (Day 6)
+python code\agent.py            # interactive agent (recommended starting point)
+python code\generate.py         # single-question pipeline, verbose output
+python code\evaluate.py         # run the 12-question evaluation harness
+python code\query_store.py      # query Chroma directly, no LLM
+python code\ingest.py           # re-chunk and re-embed if you change movies.json
 ```
 
-## Evaluation results (Day 5)
+## Example session
+
+```
+Movie agent ready. Type 'quit' to exit.
+
+You: Hi there!
+Agent: Hi! I'm a movie assistant with a database of 8 films. Ask me anything about
+       Inception, Shawshank Redemption, Mad Max: Fury Road, The Grand Budapest Hotel,
+       Get Out, Interstellar, La La Land, or Parasite.
+
+You: What family infiltrates a wealthy household?
+Agent: The Kim family.
+
+You: Who are the main actors in Mad Max: Fury Road?
+Agent: I don't have enough information in my corpus to answer that.
+```
+
+## Evaluation results
 
 | Metric | Score | Notes |
 |---|---|---|
 | Retrieval recall@3 | 10/11 = **91%** | 1 miss: short generic query for Get Out |
 | Refusal detection | **100%** | Caught by code (string match), not by the LLM judge |
 | GROUNDED/UNGROUNDED | **unreliable** | `llama3.2` too small for consistent faithfulness scoring |
+
+
+## What I'd improve with more time
+
+- **Hybrid search** — combine Chroma's metadata filtering with vector similarity so genre, year, and other structured fields are actually searchable, not invisible to retrieval. The current setup stores year/genre as metadata but never embeds them, so queries like "horror movies" can't filter by genre at all.
+- **Larger embedding model** — swap `all-MiniLM-L6-v2` for `all-mpnet-base-v2` and rerun the Day 5 eval to measure the recall improvement on short queries.
+- **Better faithfulness judge** — replace `llama3.2` as judge with a larger model or a rule-based checker. The current judge is unreliable for the GROUNDED/UNGROUNDED distinction and even returns misspelled labels on some runs.
+- **Pluggable LLM backend** — let someone clone this repo and use their own Claude or Gemini API key instead of Ollama, via an env variable and a small provider wrapper.
 
 ---
 
@@ -157,36 +195,31 @@ Replaced the fixed pipeline with one that makes two runtime decisions: skip retr
 
 Built `agent.py` as an interactive loop with two agent decisions layered on top of the existing retrieve-generate pipeline:
 
-**Decision 1 — chitchat router.** Before any retrieval, the model classifies whether the question needs a database lookup or is just conversation. "Hi!", "What movies do you know about?", and "Thanks for your help" all correctly routed to CHITCHAT — no vector search triggered. This matters in production because every retrieval call costs time and compute, and greetings shouldn't pay that cost.
+**Decision 1 — chitchat router.** Before any retrieval, the model classifies whether the question needs a database lookup or is just conversation. "Hi!", "What movies do you know about?", and "Thanks for your help" all correctly routed to CHITCHAT — no vector search triggered.
 
-**Decision 2 — query rewriting on low confidence.** If the top retrieved chunk scores below a threshold (0.35 after calibration), the model rewrites the query into something more descriptive before retrying. The rewrite only replaces the original if it actually improves the score — otherwise the original is kept.
+**Decision 2 — query rewriting on low confidence.** If the top retrieved chunk scores below 0.35, the model rewrites the query into something more descriptive before retrying. The rewrite only replaces the original if it actually improves the score.
 
-Added structured logging via Python's `logging` module, writing timestamped entries to both console and `rag.log`. Every routing decision, similarity score, rewrite attempt, and generation step is recorded with its outcome.
+Added structured logging via Python's `logging` module to both console and `rag.log`.
 
-**Test results from the log:**
+The clearest demonstration that rewriting works when it *can* work: querying "Machete!" — a one-word title for a movie not in the corpus at all — scored 0.206, triggered the rewrite, and the model expanded it to *"Action films about a lone hero seeking revenge after being betrayed by corrupt government officials or Mexican cartel members."* Score jumped to 0.365. The mechanism is sound — the limitation is what's actually stored.
 
-- Chitchat detection: 3/3 correct, zero unnecessary retrievals.
-- Normal lookups (Parasite, Grand Budapest): confident retrieval (0.401, 0.510), no rewrite needed, fast path through the pipeline.
-- Get Out's year with threshold 0.35: rewrite fired and rewrote to *"What is the release date of the 2017 American psychological horror film Get Out?"* — score improved from 0.321 to 0.348, but still didn't retrieve the right chunk.
-- "horror movie": rewrite fired, rewrote to *"horror movie with supernatural elements or paranormal theme"*, score actually dropped (0.312 → 0.27), fallback to original triggered correctly.
-- "Who directed Parasite?": rewrite fired, near-zero improvement (0.259 → 0.261), still no Parasite chunk.
+The underlying reason - some rewrites still fail: genre labels (Horror), release years (2017), and director names are stored only in Chroma metadata — they were never embedded into any chunk text. Vector search is blind to them entirely. The fix in production would be hybrid search: use metadata filters (`where={"genre": "Horror"}`) to narrow the candidate set first, then run vector similarity within that subset.
 
-**The underlying reason all three rewrites failed to fix retrieval:** genre labels (Horror), release years (2017), and director names (Bong Joon-ho) are stored only in Chroma metadata — they were never embedded into any chunk text. Vector search is blind to them entirely, so no amount of query rewriting can retrieve a chunk based on those fields. This is a real architectural limitation.
-
-The fix in production would be **hybrid search**: use metadata filters (`where={"genre": "Horror"}`) to narrow the candidate set first, then run vector similarity within that subset. Chroma supports this natively. It's the right next step for this project.
-
-The clearest demonstration that rewriting works when it can work: querying "Machete!" — a one-word title for a movie not in the corpus at all — scored 0.206, triggered the rewrite, and the model expanded it to "Action films about a lone hero seeking revenge after being betrayed by corrupt government officials or Mexican cartel members." Score jumped to 0.365. The mechanism is sound — the limitation is what's actually stored.
 </details>
 
 ---
 
-## What I'd improve with more time
+### Day 7 — Polish + ship
 
-- **Hybrid search** — combine Chroma's metadata filtering with vector similarity so genre, year, and other structured fields are actually searchable, not invisible to retrieval.
-- **Larger embedding model** — swap `all-MiniLM-L6-v2` for `all-mpnet-base-v2` and rerun the Day 5 eval to measure the recall improvement on short queries.
-- **Better faithfulness judge** — replace `llama3.2` as judge with a larger model or a rule-based checker. The current judge is unreliable for the GROUNDED/UNGROUNDED distinction.
-- **Pluggable LLM backend** — let someone cloning this repo use their own Claude or Gemini API key instead of Ollama, via an env variable and a small provider wrapper (Day 8 stretch goal).
+Code cleaned up, README completed, architecture diagram added, release tagged.
 
-## What's next
+<details>
+<summary>Full notes</summary>
 
-- Day 7 — polish, final write-up, clean commit history
+Went through each script removing leftover debug prints, confirming the pathlib path pattern is used consistently everywhere, and verifying nothing sensitive is tracked by git. Added `rag.log` and `chroma_db/` to `.gitignore`.
+
+Added the architecture diagram to `docs/architecture.svg` — shows both the chitchat and lookup paths through the agent, where Chroma and the LLM sit, and which script owns each step.
+
+The biggest reflection after the week: the most useful findings weren't the things that worked — they were the ones that broke in instructive ways. The naive hallucination (Day 4), the grounding instruction failing on confident model knowledge (Day 4), the judge misclassifying its own outputs (Day 5), and the metadata gap that no amount of query rewriting could overcome (Day 6) are all things worth understanding before building any RAG system at scale.
+
+</details>
