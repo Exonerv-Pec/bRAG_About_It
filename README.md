@@ -16,7 +16,7 @@ A small command-line tool that answers questions about movies — built from scr
 
 ## Architecture
 
-![System architecture](docs/architecture.svg)
+![System architecture](docs/brag_about_it_architecture.svg)
 
 The pipeline has two paths depending on what the router decides. Chitchat (greetings, meta-questions) goes straight to a direct reply with no vector search. Real questions go through retrieval, an optional query-rewrite step if confidence is low, prompt assembly, and finally the LLM. Everything is logged to `rag.log` with timestamps.
 
