@@ -2,9 +2,9 @@
 
 A small command-line tool that answers questions over a set of documents I choose — built from scratch over a week to show Retrieval Augmented Generation end-to-end.
 
-## Status: Day 5 of 7 — evaluation
+## Status: Day 6 of 7 — agent behavior + workflow design
 
-🟩🟩🟩🟩🟩⬜⬜ 5/7 days (71%)
+🟩🟩🟩🟩🟩🟩⬜ 6/7 days (86%)
 
 ## Stack
 
@@ -35,14 +35,15 @@ python code\ingest.py            # chunk + embed + store in Chroma (Day 3)
 python code\query_store.py       # query the persisted store directly
 python code\generate.py          # full RAG pipeline: retrieve + prompt + generate (Day 4)
 python code\evaluate.py          # run the 12-question eval harness (Day 5)
+python code\agent.py             # interactive agent with routing and query rewriting (Day 6)
 ```
 
 ## Evaluation results (Day 5)
 
 | Metric | Score | Notes |
 |---|---|---|
-| Retrieval recall@3 | 10/11 = **91%** | 1 miss: short generic query for Get Out retrieved wrong chunks |
-| Refusal detection | **100%** | Reliable — caught by code, not by the LLM judge |
+| Retrieval recall@3 | 10/11 = **91%** | 1 miss: short generic query for Get Out |
+| Refusal detection | **100%** | Caught by code (string match), not by the LLM judge |
 | GROUNDED/UNGROUNDED | **unreliable** | `llama3.2` too small for consistent faithfulness scoring |
 
 ---
@@ -90,17 +91,16 @@ Moved from a flat Python list to a real Chroma database that persists between ru
 <details>
 <summary>Full notes</summary>
 
-Expanded each movie from a one-line description to a full synopsis paragraph (necessary to give the chunker something real to work with), then built a chunking function: 300 characters per chunk, ~15% overlap between consecutive chunks. The overlap doesn't link chunks together — it just copies the tail of one chunk to the head of the next, so a sentence that falls on a boundary appears complete in at least one of the two chunks.
+Expanded each movie from a one-line description to a full synopsis paragraph, then built a chunking function: 300 characters per chunk, ~15% overlap between consecutive chunks. The overlap doesn't link chunks together — it copies the tail of one chunk to the head of the next, so a sentence that falls on a boundary still appears complete in at least one of the two chunks.
 
-Stored everything in a Chroma `PersistentClient` collection with metadata attached to each chunk: source title, chunk index, year, genre. Year and genre aren't embedded — they ride along as metadata for filtering, not for similarity matching.
+Stored everything in a Chroma `PersistentClient` collection with metadata attached to each chunk: source title, chunk index, year, genre. Year and genre aren't embedded — they ride along as metadata for filtering, not for similarity matching. That decision came back to matter on Days 5 and 6.
 
-Hit a path bug on the first run: PyCharm's default working directory is the script's own folder (`code/`), so `open("data/movies.json")` was looking for `code/data/movies.json`. Fixed by computing all paths off `Path(__file__).resolve().parent.parent` so every script finds its files regardless of where it's launched from.
+Hit a path bug on the first run: PyCharm's default working directory is the script's own folder (`code/`), not the project root. Fixed by computing all paths off `Path(__file__).resolve().parent.parent` so every script finds its files regardless of where it's launched from.
 
-Some results from manual testing once it was working:
-- *"Max Rockatansky finds himself captured by the War Boys"* → Mad Max chunk 0 at 0.733 — by far the most confident match seen all week.
-- *"I want to watch a movie where actress works as barista!"* → La La Land top at 0.417 despite casual phrasing and punctuation.
-- *"Yo! I want to watch a movie about a banker!"* → Grand Budapest narrowly beat Shawshank (0.336 vs 0.319) even though "banker" appears verbatim in Shawshank's synopsis. The model is matching on overall plot vibe, not keyword presence.
-- One Shawshank chunk starts mid-sentence ("...le long-term plan culminate...") because the chunk boundary fell mid-word. It kept appearing as noise in unrelated queries throughout Days 4 and 5.
+Some results from manual testing:
+- *"Max Rockatansky finds himself captured by the War Boys"* → Mad Max chunk 0 at 0.733.
+- *"I want to watch a movie where actress works as barista!"* → La La Land top at 0.417 despite casual phrasing.
+- *"Yo! I want to watch a movie about a banker!"* → Grand Budapest narrowly beat Shawshank (0.336 vs 0.319) even though "banker" appears verbatim in Shawshank's synopsis. The model matches on overall plot vibe, not keyword presence.
 
 </details>
 
@@ -115,11 +115,11 @@ Closed the loop into a full RAG pipeline. Found that a grounding instruction mea
 
 Wired the full path: `retrieve` → `build_prompt` → call Ollama → print answer. The prompt template uses `.format()` rather than an f-string because `context` and `question` don't exist at the time the template is defined — they're substituted later inside `build_prompt()` when a real question comes in.
 
-Ran the grounded vs naive comparison. The naive version produced the cleanest hallucination of the week: asked "Do you know any movie about a barista?", it had La La Land's synopsis sitting right there in the context and never mentioned it. Instead it invented a movie called "Barista" (2023) with a fabricated director, and cited "Like Water for Chocolate" as if it came from the provided context, which it didn't.
+Ran the grounded vs naive comparison. The naive version produced the cleanest hallucination of the week: asked "Do you know any movie about a barista?", it had La La Land's synopsis sitting right there in the context and never mentioned it. Instead it invented a movie called "Barista" (2023) with a fabricated director.
 
-The grounded version went 7 for 7 on a first pass — until one more test. Mad Max's synopsis uses only character names (Max, Furiosa, Immortan Joe), never actor names. Asked "Who are the main actors in Mad Max: Fury Road?" with the correct synopsis retrieved and the grounding instruction active, the model answered with a full five-person cast list — all factually accurate, none of it in the context. The instruction was bypassed entirely because the model was confident in its own training data.
+The grounded version went 7 for 7 on a first pass — until one more test. Mad Max's synopsis uses only character names, never actor names. Asked who the main actors are with the correct synopsis retrieved and the grounding instruction active, the model answered with a full five-person cast list anyway. All factually accurate, none of it in the context. The instruction was bypassed because the model was confident in its own training data.
 
-The takeaway: a grounding instruction is a strong nudge, not a hard guarantee. It breaks down specifically when the right document is retrieved but the one specific fact being asked about isn't in it — the most realistic failure mode in production, because it's invisible unless you actually check the context.
+Takeaway: a grounding instruction is a strong nudge, not a hard guarantee. It breaks down specifically when the right document is retrieved but the one specific fact being asked about isn't in it.
 
 </details>
 
@@ -132,28 +132,61 @@ Built a 12-question harness with separate retrieval (recall@3) and generation (f
 <details>
 <summary>Full notes</summary>
 
-Built `evaluate.py` with a 12-question test set drawn from real findings across Days 2–4. Each question has an `expected_source` (which movie's chunk should be retrieved) and an `answerable` flag (whether the corpus actually contains the specific fact, not just the right document). That distinction matters: Mad Max's synopsis is the right document for actor questions, but it doesn't contain actor names — so the correct answer is a refusal, even when retrieval succeeds.
+Built `evaluate.py` with a 12-question test set drawn from real findings across Days 2–4. Each question has an `expected_source` (which movie's chunk should be retrieved) and an `answerable` flag (whether the corpus actually contains the specific fact, not just the right document).
 
-**Retrieval recall@3: 91% (10/11)** — genuinely solid. The one miss (Get Out's year) is consistent with the Day 2 finding: short, generic queries don't give the embedding enough signal to find the right chunk.
+**Retrieval recall@3: 91% (10/11)** — solid. The one miss (Get Out's year) is consistent with the Day 2 finding: short, generic queries don't give the embedding enough signal.
 
-The generation scoring went through three iterations and turned into the most honest finding of the week.
+The generation scoring went through three iterations. The first had a substring bug: `"GROUNDED"` is a substring of `"UNGROUNDED"`, so the label check matched the wrong one first and every verdict came back GROUNDED. Fixed by reordering to check `"UNGROUNDED"` first.
 
-**Iteration 1** — original judge prompt, no label ordering fix. The substring bug meant `"GROUNDED"` matched inside `"UNGROUNDED"` first, so every verdict came back GROUNDED regardless of actual content. Fixed by reordering the label check to test `"UNGROUNDED"` before `"GROUNDED"`.
+Even after fixing that, the LLM judge kept misclassifying refusals — returning GROUNDED on clear "I don't have enough information" answers, and even returning misspelled labels like "UNGROUNDENED." That indicated `llama3.2` is too small to reliably follow strict classification instructions.
 
-**Iteration 2** — substring fix applied. Refusals were still misclassified (the LLM returned GROUNDED on clear "I don't have enough information" answers). Fixed by moving refusal detection out of the LLM entirely and into a simple string match in Python — much more reliable since the refusal phrasing is consistent.
+Final approach: refusal detection moved entirely into code (simple string match — reliable, since the phrasing is consistent), LLM judge used only for the harder GROUNDED vs UNGROUNDED distinction. The judge is still flagged as unreliable for that half. In production, this would need a larger model or a rule-based approach.
 
-**Iteration 3** — hybrid approach: refusals detected by code, GROUNDED/UNGROUNDED by the LLM. Refusal detection now works perfectly. But the LLM judge is still wrong in the other direction — it marks short, clearly grounded answers like "The Kim family" and "M. Gustave" as UNGROUNDED, and even returns misspelled labels like "UNGROUNDENED." and "UNGROUNDEN." showing it's not confidently following the instruction at all.
-
-The conclusion: `llama3.2` is too small to be a reliable faithfulness judge. This is a known limitation in the field — LLM-as-judge works well with large, instruction-following models (GPT-4, Claude Opus) but degrades significantly with smaller local models. The refusal check stays in code. The GROUNDED/UNGROUNDED scoring is flagged as unreliable in this setup, and would need a larger model or a rule-based approach to be production-worthy.
-
-The real lesson isn't that the eval harness is broken — it's that evaluation itself is a hard problem, and the tool you use to measure quality has its own quality problem. That applies to any automated eval pipeline, not just this one.
+The broader lesson: evaluation itself is a hard problem, and the tool used to measure quality has its own quality problem.
 
 </details>
 
 ---
 
+### Day 6 — Agent behavior + workflow design
+
+Replaced the fixed pipeline with one that makes two runtime decisions: skip retrieval for chitchat, and rewrite weak queries before retrying. Added structured logging to every decision step. Discovered a fundamental metadata vs embedding gap in the process.
+
+<details>
+<summary>Full notes</summary>
+
+Built `agent.py` as an interactive loop with two agent decisions layered on top of the existing retrieve-generate pipeline:
+
+**Decision 1 — chitchat router.** Before any retrieval, the model classifies whether the question needs a database lookup or is just conversation. "Hi!", "What movies do you know about?", and "Thanks for your help" all correctly routed to CHITCHAT — no vector search triggered. This matters in production because every retrieval call costs time and compute, and greetings shouldn't pay that cost.
+
+**Decision 2 — query rewriting on low confidence.** If the top retrieved chunk scores below a threshold (0.35 after calibration), the model rewrites the query into something more descriptive before retrying. The rewrite only replaces the original if it actually improves the score — otherwise the original is kept.
+
+Added structured logging via Python's `logging` module, writing timestamped entries to both console and `rag.log`. Every routing decision, similarity score, rewrite attempt, and generation step is recorded with its outcome.
+
+**Test results from the log:**
+
+- Chitchat detection: 3/3 correct, zero unnecessary retrievals.
+- Normal lookups (Parasite, Grand Budapest): confident retrieval (0.401, 0.510), no rewrite needed, fast path through the pipeline.
+- Get Out's year with threshold 0.35: rewrite fired and rewrote to *"What is the release date of the 2017 American psychological horror film Get Out?"* — score improved from 0.321 to 0.348, but still didn't retrieve the right chunk.
+- "horror movie": rewrite fired, rewrote to *"horror movie with supernatural elements or paranormal theme"*, score actually dropped (0.312 → 0.27), fallback to original triggered correctly.
+- "Who directed Parasite?": rewrite fired, near-zero improvement (0.259 → 0.261), still no Parasite chunk.
+
+**The underlying reason all three rewrites failed to fix retrieval:** genre labels (Horror), release years (2017), and director names (Bong Joon-ho) are stored only in Chroma metadata — they were never embedded into any chunk text. Vector search is blind to them entirely, so no amount of query rewriting can retrieve a chunk based on those fields. This is a real architectural limitation.
+
+The fix in production would be **hybrid search**: use metadata filters (`where={"genre": "Horror"}`) to narrow the candidate set first, then run vector similarity within that subset. Chroma supports this natively. It's the right next step for this project.
+
+The clearest demonstration that rewriting works when it can work: querying "Machete!" — a one-word title for a movie not in the corpus at all — scored 0.206, triggered the rewrite, and the model expanded it to "Action films about a lone hero seeking revenge after being betrayed by corrupt government officials or Mexican cartel members." Score jumped to 0.365. The mechanism is sound — the limitation is what's actually stored.
+</details>
+
+---
+
+## What I'd improve with more time
+
+- **Hybrid search** — combine Chroma's metadata filtering with vector similarity so genre, year, and other structured fields are actually searchable, not invisible to retrieval.
+- **Larger embedding model** — swap `all-MiniLM-L6-v2` for `all-mpnet-base-v2` and rerun the Day 5 eval to measure the recall improvement on short queries.
+- **Better faithfulness judge** — replace `llama3.2` as judge with a larger model or a rule-based checker. The current judge is unreliable for the GROUNDED/UNGROUNDED distinction.
+- **Pluggable LLM backend** — let someone cloning this repo use their own Claude or Gemini API key instead of Ollama, via an env variable and a small provider wrapper (Day 8 stretch goal).
+
 ## What's next
 
-- Day 6 — agent behavior
-- Day 7 — polish + final write-up
-- Stretch (Day 8) — pluggable LLM backend so someone cloning this repo can use their own Claude or Gemini key instead of Ollama
+- Day 7 — polish, final write-up, clean commit history
